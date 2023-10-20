@@ -169,6 +169,10 @@ class Arena:
             case _Supers.HYPNO:
                 if not self.use_hypno(gladiator):
                     return False
+            case _Supers.DOWNPOUR:
+                self.use_downpour(gladiator, opponent)
+            case _Supers.TRAPPER:
+                self.use_trapper(gladiator)
 
         super_.use -= 1
         if super_.use == 0:
@@ -259,7 +263,60 @@ class Arena:
         return follower_flee
 
     def use_hypno(self, gladiator: Glad) -> bool:
-        pass
+        follower_hypno = False
+        for opponent_followers in self.glads:
+            if (
+                opponent_followers.team != gladiator.team
+                and opponent_followers.gd.fol is not None
+                and not opponent_followers.status[1]
+            ):
+                opponent_followers.team = gladiator.team
+                follower_hypno = True
+                # TODO ADD HISTORY
+        return follower_hypno
+
+    def use_downpour(self, gladiator: Glad, opponent: Glad) -> None:
+        if len(gladiator.weapons) > 2:
+            weapons_to_throw = gladiator.weapons.copy()
+            weapons_to_throw.remove(gladiator.wp)
+            max_throw = len(weapons_to_throw) // 2
+            for _ in range(max_throw):
+                weapons_to_throw.pop(self.seed.random(len(weapons_to_throw)))
+            damages = []
+            for wp in weapons_to_throw:
+                damage = int(
+                    wp.deg + gladiator.gd.force * 0.1 + gladiator.gd.agility * 0.15
+                ) * (1 + self.seed.rand_() * 0.5)
+                damage -= opponent.gd.armor
+                if damage < 1:
+                    damage = 1
+                damage = self.hit(opponent, damage)
+                damages.append(damage)
+                gladiator.weapons.remove(wp)
+            # TODO ADD HISTORY
+            self.check_death()
+            gladiator.init += 200 * gladiator.ct
+
+    def use_trapper(self, gladiator: Glad) -> None:
+        life_max = gladiator.gd.lifeMax_()
+        if gladiator.life + 20 < life_max and len(self.cadavers) > 0:
+            cad = self.cadavers.pop()
+            c = 0.0
+            match cad.gd.fol:
+                case _Followers.DOG_0, _Followers.DOG_1, _Followers.DOG_2:
+                    c = 0.2
+                case _Followers.PANTHER:
+                    c = 0.3
+                case _Followers.BEAR:
+                    c = 0.5
+            heal = int(c * life_max)
+            if gladiator.life + heal > life_max:
+                heal = life_max - gladiator.life
+            gladiator.life += heal
+            gladiator.init += 15
+            # TODO ADD HISTORY MOVETO
+            # TODO ADD HISTORY EAT
+            # TODO ADD HISTORY MOVEBACK
 
     def draw_weapon(self, gladiator: Glad, wp: int) -> _Weapons | None:
         pass
