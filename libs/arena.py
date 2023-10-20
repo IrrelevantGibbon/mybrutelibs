@@ -2,6 +2,19 @@ from typing import Any, List
 from rand import Rand
 from data import _Followers, _Supers, _Weapons, _WeaponType, Data, Weap, Sup
 from gladiator import Gladiator
+from enum import Enum, auto
+
+
+class TeamStat:
+    DODGE = auto()
+    PARADE = auto()
+    DISARM = auto()
+    RIPOSTE = auto()
+    COUNTER = auto()
+    FOL_FRAG = auto()
+    DAMAGE_MAX = auto()
+    STRIKE = auto()
+    MISSILE_LIGHT = auto()
 
 
 class Team:
@@ -57,7 +70,7 @@ class Glad:
         self.f_ballerina = gladiator.flBallerina
         self.status = []
         self.keep = 0.0
-        self.ct = 0.25 + (20 / (10 * gladiator.speed)) * 0.75
+        self.ct = 0.25 + (20 / (10 * gladiator.speed_())) * 0.75
         self.gd: Gladiator = gladiator
         self.default_wp: Weap = Data.weapons()[0]
         self.wp: Weap = self.default_wp
@@ -212,7 +225,7 @@ class Arena:
         self.set_status(net_receiver, 1, True)
 
         net_receiver.init += (
-            int(max(260 - pow(net_receiver.gd.force, 0.5) * 10, 50))
+            int(max(260 - pow(net_receiver.gd.force_(), 0.5) * 10, 50))
             if net_receiver.gd.fol is None
             else 100000
         )
@@ -286,7 +299,9 @@ class Arena:
             damages = []
             for wp in weapons_to_throw:
                 damage = int(
-                    wp.deg + gladiator.gd.force * 0.1 + gladiator.gd.agility * 0.15
+                    wp.deg
+                    + gladiator.gd.force_() * 0.1
+                    + gladiator.gd.agility_() * 0.15
                 ) * (1 + self.seed.rand_() * 0.5)
                 damage -= opponent.gd.armor
                 if damage < 1:
@@ -366,13 +381,85 @@ class Arena:
         return opponent_team[self.seed.random(len(opponent_team))]
 
     def throw_attacks(self, gladiator: Glad, opponent: Glad) -> None:
-        pass
+        damage = self.get_throw_damage(gladiator, opponent)
+
+        if self.test_parade(gladiator, opponent, 10):
+            damage = 0
+
+        if self.test_esquive(gladiator, opponent, 2):
+            damage = -1
+
+        if damage > 0:
+            damage = self.hit(opponent, damage)
+            self.st(gladiator, TeamStat.STRIKE)
+            self.st_dam_max(gladiator, damage)
+
+        # TODO ADD HISTORY
+
+        if gladiator.wp.type != _WeaponType.Throw:
+            gladiator.weapons.remove(gladiator.wp)
+            gladiator.wp = gladiator.default_wp
+        else:
+            self.st(gladiator, TeamStat.MISSILE_LIGHT)
+
+        self.check_death()
 
     def test_counter(self, gladiator: Glad, opponent: Glad) -> bool:
-        pass
+        return (
+            self.seed.rand_()
+            < (opponent.gd.counter + (opponent.wp.zone - gladiator.wp.zone)) * 0.1
+        )
 
-    def st(self, opponent: Glad, stat: Any) -> bool:
-        pass
+    def test_parade(self, gladiator: Glad, opponent: Glad, c: float | None) -> bool:
+        if opponent.status[1]:
+            return False
+        if c != 0:
+            c = 1
+        n = opponent.gd.parry + opponent.wp.par - gladiator.wp.par
+        return self.seed.rand_() * c < n * 0.1
+
+    def test_esquive(self, gladiator: Glad, opponent: Glad, c: float | None) -> bool:
+        if opponent.status[1]:
+            return False
+        if c != 0:
+            c = 1
+
+        if opponent.f_ballerina:
+            opponent = False
+            return True
+
+        agg = min(max(-40, (opponent.gd.agility_() - gladiator.gd.agility_()) * 2), 40)
+        n = min(
+            opponent.gd.dodge
+            + opponent.wp.dodge
+            + agg
+            - (gladiator.gd.accuracy + gladiator.wp.rap),
+            90,
+        )
+        return self.seed.rand_() * c < n * 0.1
+
+    def test_riposte(self, gladiator: Glad, opponent: Glad):
+        if opponent.counter:
+            opponent.counter = False
+            return True
+
+        n = opponent.gd.riposte + opponent.wp.rip
+        return self.seed.rand_() < n * 0.1
+
+    def st(self, gladiator: Glad, stat: Any) -> None:
+        if gladiator.gl.fol is not None:
+            return
+        self.teams[gladiator.team].stats[stat] += 1
+
+    def tst(self, team: int, stat: Any) -> None:
+        self.teams[team].stats[stat] += 1
+
+    def st_dam_max(self, gladiator: Glad, dam: int) -> None:
+        if gladiator.gd.fol is not None:
+            return
+        stats = self.teams[gladiator.team].stats
+        if dam > stats[TeamStat.DAMAGE_MAX]:
+            stats[TeamStat.DAMAGE_MAX] = dam
 
     def attack(self, gladiator: Glad, opponent: Glad) -> None:
         pass
@@ -387,29 +474,30 @@ class Arena:
     def hit(self, gladiator: Glad, damage: int) -> int:
         if gladiator.status[1]:
             self.remove_net(gladiator)
-        
+
         if gladiator.gd.flIncrevable:
             max = round(gladiator.gd.lifeMax_() / 5)
             if damage > max:
                 damage = max
                 # TODO ADD HISTORY
-        
+
         gladiator.life -= damage
-        
-        if gladiator.gd.flSurvival and gladiator.life <= 0:
+
+        if gladiator.fl_survival and gladiator.life <= 0:
             gladiator.life = 1
-            gladi
-            # TODO ADD HISTORY
-        
+            gladiator.fl_survival = False
+
         gladiator.life_log.append(damage)
         return damage
-    
+
     def remove_net(self, gladiator: Glad) -> None:
         self.set_status(gladiator, 1, False)
         gladiator.init = self.current_init + 50
 
     def get_grab_damage(self, gladiator: Glad, opponent: Glad | None) -> int:
-        damage = int((10 + gladiator.gd.force * 0.6) * (0.8 + self.seed.rand_() * 0.4))
+        damage = int(
+            (10 + gladiator.gd.force_() * 0.6) * (0.8 + self.seed.rand_() * 0.4)
+        )
         if gladiator.status[0]:
             damage *= 2
         if opponent is not None:
@@ -420,7 +508,7 @@ class Arena:
 
     def get_brawl_damage(self, gladiator: Glad, opponent: Glad | None) -> int:
         coef = 0.2 + gladiator.wp.deg * 0.05
-        damage = (gladiator.wp.deg + gladiator.gd.force * coef) * (
+        damage = (gladiator.wp.deg + gladiator.gd.force_() * coef) * (
             0.8 + self.seed.rand_() * 0.4
         )
         if gladiator.status[0]:
@@ -438,7 +526,9 @@ class Arena:
 
     def get_throw_damage(self, gladiator: Glad, opponent: Glad | None) -> int:
         damage = int(
-            gladiator.wp.ged + gladiator.gd.force * 0.1 + gladiator.gd.agility * 0.15
+            gladiator.wp.ged
+            + gladiator.gd.force_() * 0.1
+            + gladiator.gd.agility_() * 0.15
         ) * (1 + self.seed.rand_() * 0.5)
         if opponent is not None:
             damage -= opponent.gd.armor
@@ -518,9 +608,6 @@ class Arena:
         if gladiator.status[0]:
             self.set_status(gladiator, 0, False)
 
-    def check_death(self):
-        pass
-
     def fight(self):
         self.init_followers()
 
@@ -534,6 +621,9 @@ class Arena:
             if self.check_end():
                 self.end_fight()
                 break
+
+    def check_death(self):
+        pass
 
     def check_end(self):
         pass
