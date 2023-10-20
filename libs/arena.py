@@ -1,6 +1,6 @@
-from typing import List
+from typing import Any, List
 from rand import Rand
-from data import _Followers, _Supers, _Weapons
+from data import _Followers, _Supers, _Weapons, _WeaponType
 from gladiator import Gladiator
 
 
@@ -30,6 +30,21 @@ class AddFollower(Action):
         super().__init__(id)
         self.team = team
         self.follower = follower
+
+
+class MoveTo(Action):
+    name = "MoveTo"
+
+    def __init__(self, glad_id: int, opponent_id: int):
+        super().__init__(glad_id)
+        self.opponent_id = opponent_id
+
+
+class MoveBack(Action):
+    name = "MoveBack"
+
+    def __init__(self, glad_id: int):
+        super().__init__(glad_id)
 
 
 class Glad:
@@ -104,33 +119,100 @@ class Arena:
 
     def use_super(self, super: _Supers, gladiator: Glad) -> bool:
         pass
-    
+
     def draw_weapon(self, gladiator: Glad, wp: int) -> _Weapons | None:
         pass
-    
+
     def hold_weapon(self, gladiator: Glad) -> bool:
         pass
-    
+
     def trash_weapon(self, gladiator: Glad) -> None:
         pass
-    
+
+    def get_opponent(self, gladiator: Glad) -> Glad:
+        pass
+
+    def throw_attacks(self, gladiator: Glad, opponent: Glad) -> None:
+        pass
+
+    def test_counter(self, gladiator: Glad, opponent: Glad) -> bool:
+        pass
+
+    def st(self, opponent: Glad, stat: Any) -> bool:
+        pass
+
+    def attack(self, gladiator: Glad, opponent: Glad) -> None:
+        pass
+
+    def attacks(self, gladiator: Glad, opponent: Glad) -> None:
+        pass
+
+    def set_status(self, gladiator: Glad, sid: int, flag: bool) -> None:
+        pass
 
     def action(self, gladiator: Glad):
         super_ = self.draw_super(gladiator, 10)
         if super_ is not None and self.use_super(super_, gladiator):
             return
-        
+
         if self.hold_weapon(gladiator):
             gladiator.flkeep = True
-        
+
         weapon_ = self.draw_weapon(gladiator, 10)
         if self.seed.rand_() < gladiator.keep:
             gladiator.keep *= 0.5
             weapon_ = None
-        
+
         if weapon_ is not None and weapon_ != gladiator.wp:
             gladiator.flkeep = False
-            # if 
+            if self.hold_weapon(gladiator):
+                self.trash_weapon(gladiator)
+            gladiator.wp = weapon_
+            gladiator.keep = 0.5
+            sab = gladiator.wp == gladiator.sabotage
+            if sab:
+                gladiator.weapons.remove(gladiator.wp)
+                gladiator.wp = gladiator.defaultWeapon
+                gladiator.init += 100
+                gladiator.sabotage = None
+                return
+
+        opponent = self.get_opponent(gladiator)
+        attack_type = gladiator.wp.type
+        if (
+            gladiator.wp.type == _WeaponType.Brawl
+            and gladiator.flkeep
+            and self.hold_weapon(gladiator)
+            and self.seed.random(gladiator.wp.deg) == 0
+        ):
+            attack_type = _WeaponType.Throw
+
+        match attack_type:
+            case _WeaponType.Brawl:
+                self.add_history(MoveTo(gladiator.gd.id, opponent.gd.id))
+
+                if not opponent.status[1] and self.test_counter(gladiator, opponent):
+                    self.st(opponent, 1)  # TODO COUNTER
+                    self.attack(gladiator, opponent)
+                    return
+                else:
+                    self.attacks(gladiator, opponent)
+
+                if gladiator.life <= 0:
+                    self.add_history(MoveBack(gladiator.gd.id))
+
+                self.add_history(MoveBack(gladiator.gd.id))
+            case _WeaponType.Throw:
+                self.throw_attacks(gladiator, opponent)
+
+        tp = gladiator.wp.tempo * gladiator.ct + self.seed.random(10)
+        if gladiator.gd.flHeavyArms and gladiator.wp.dt == 4:
+            tp *= 0.75
+
+        gladiator.init += tp
+
+        if gladiator.status[0]:
+            self.set_status(gladiator, 0, False)
 
     def check_death(self):
         pass
