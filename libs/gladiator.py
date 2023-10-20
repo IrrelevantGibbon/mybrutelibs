@@ -8,6 +8,7 @@ from data import (
     _Weapons,
     _Bonus,
     Data,
+    Fol,
     Permanent,
     Super,
     Weapons,
@@ -160,8 +161,35 @@ class Gladiator:
             case 3:
                 self.lifeMax += inc
 
-    def init_follower(self):
-        pass
+    def init_follower(self, followers: _Followers):
+        datas: Fol = Data.followers(followers)
+
+        self.lvl = 0
+        self.damageCoef = [1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+
+        self.bonus = []
+        self.weapons = []
+        self.followers = []
+        self.supers = []
+
+        self.force = datas.force
+        self.agility = datas.agility
+        self.speed = datas.speed
+        self.lifeMax = datas.life_max
+
+        self.armor = 0
+
+        self.counter = datas.counter
+        self.riposte = datas.riposte
+        self.combo = datas.combo
+        self.parry = datas.parry
+        self.dodge = datas.dodge
+        self.startInit = datas.init
+
+        self.disarm = 0
+        self.accuracy = 0
+
+        self.defaultWeapon = datas.dw
 
     def set_weight(self, id, w):
         for i in self.bonusWeight:
@@ -219,7 +247,7 @@ class Gladiator:
         return int(self.speed * self.multiSpeed)
 
     def lifeMax_(self):
-        return 50 + int(self.lifeMax * self.multiLifeMax) + self.lvl 
+        return 50 + int(self.lifeMax * self.multiLifeMax) + self.lvl
 
     def add_bonus(self, bonus):
         self.lastBonus = bonus
@@ -327,3 +355,56 @@ class Gladiator:
                         self.set_weight(Followers(_Followers.PANTHER), 0)
                     if bonus.id == _Followers.BEAR:
                         self.set_weight(Followers(_Followers.BEAR), 0)
+
+
+# level = 548
+# gd = Gladiator()
+# gd.new(256, "DC TROUFION")
+
+# for _ in range(level):
+#     gd.next_level()
+
+
+# ## pretty print all the datas
+# print(f"Name: {gd.name}")
+# print(f"Level: {gd.lvl}")
+# print(f"LifeMax: {gd.lifeMax_()}")
+# print(f"Force: {gd.force_()}")
+# print(f"Agility: {gd.agility_()}")
+# print(f"Speed: {gd.speed_()}")
+
+# ## print all the weapons
+# print("Weapons:")
+# for i in gd.weapons:
+#     print(i.id)
+
+# ## print all the supers
+# print("Supers:")
+# for i in gd.supers:
+#     print(i.id)
+
+# ### permanent
+# print("Permanent:")
+# for i in gd.bonus:
+#     if isinstance(i, Permanent):
+#         print(i.id)
+
+# ## print all the followers
+# print("Followers:")
+# for i in gd.followers:
+#     print(i.id)
+
+# gds = []
+# for i in range(1000):
+#     gd = Gladiator()
+#     gd.new(i, f"DC TROUFION {i}")
+#     for _ in range(50):
+#         gd.next_level()
+#     gds.append(gd)
+# gd_fl = []
+# for gd in gds:
+
+#     if len(gd.followers) > 2:
+#         gd_fl.append(gd)
+
+# a = 0

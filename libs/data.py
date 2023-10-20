@@ -153,6 +153,21 @@ class Sup:
         self.use = data["use"]
 
 
+class Fol:
+    def __init__(self, data):
+        self.force = data["force"]
+        self.agility = data["agility"]
+        self.speed = data["speed"]
+        self.life_max = data["lifeMax"]
+        self.counter = data["counter"]
+        self.riposte = data["riposte"]
+        self.combo = data["combo"]
+        self.parry = data["parry"]
+        self.dodge = data["dodge"]
+        self.init = data["init"]
+        self.dw = data["dw"]
+
+
 class Data:
     @staticmethod
     def weapons():
@@ -694,71 +709,81 @@ class Data:
     @staticmethod
     def followers():
         return [
-            {
-                "force": 6,
-                "agility": 5,
-                "speed": 3,
-                "lifeMax": -6,
-                "counter": 0,
-                "riposte": 0,
-                "combo": 10,
-                "parry": 0,
-                "dodge": 0,
-                "init": 10,
-                "dw": _Weapons.FANGS,
-            },  # DOG_0
-            {
-                "force": 6,
-                "agility": 5,
-                "speed": 3,
-                "lifeMax": -6,
-                "counter": 0,
-                "riposte": 0,
-                "combo": 10,
-                "parry": 0,
-                "dodge": 0,
-                "init": 10,
-                "dw": _Weapons.FANGS,
-            },  # DOG_1
-            {
-                "force": 6,
-                "agility": 5,
-                "speed": 3,
-                "lifeMax": -6,
-                "counter": 0,
-                "riposte": 0,
-                "combo": 10,
-                "parry": 0,
-                "dodge": 0,
-                "init": 10,
-                "dw": _Weapons.FANGS,
-            },  # DOG_2
-            {
-                "force": 23,
-                "agility": 16,
-                "speed": 24,
-                "lifeMax": -4,
-                "counter": 0,
-                "riposte": 0,
-                "combo": 60,
-                "parry": 0,
-                "dodge": 20,
-                "init": 60,
-                "dw": _Weapons.FANGS,
-            },  # PANTHER
-            {
-                "force": 40,
-                "agility": 2,
-                "speed": 1,
-                "lifeMax": 10,
-                "counter": 0,
-                "riposte": 0,
-                "combo": -20,
-                "parry": 0,
-                "dodge": 0,
-                "init": 360,
-                "dw": _Weapons.HANDS,
-            },
+            Fol(
+                {
+                    "force": 6,
+                    "agility": 5,
+                    "speed": 3,
+                    "lifeMax": -6,
+                    "counter": 0,
+                    "riposte": 0,
+                    "combo": 10,
+                    "parry": 0,
+                    "dodge": 0,
+                    "init": 10,
+                    "dw": _Weapons.FANGS,
+                }
+            ),  # DOG_0
+            Fol(
+                {
+                    "force": 6,
+                    "agility": 5,
+                    "speed": 3,
+                    "lifeMax": -6,
+                    "counter": 0,
+                    "riposte": 0,
+                    "combo": 10,
+                    "parry": 0,
+                    "dodge": 0,
+                    "init": 10,
+                    "dw": _Weapons.FANGS,
+                }
+            ),  # DOG_1
+            Fol(
+                {
+                    "force": 6,
+                    "agility": 5,
+                    "speed": 3,
+                    "lifeMax": -6,
+                    "counter": 0,
+                    "riposte": 0,
+                    "combo": 10,
+                    "parry": 0,
+                    "dodge": 0,
+                    "init": 10,
+                    "dw": _Weapons.FANGS,
+                }
+            ),  # DOG_2
+            Fol(
+                {
+                    "force": 23,
+                    "agility": 16,
+                    "speed": 24,
+                    "lifeMax": -4,
+                    "counter": 0,
+                    "riposte": 0,
+                    "combo": 60,
+                    "parry": 0,
+                    "dodge": 20,
+                    "init": 60,
+                    "dw": _Weapons.FANGS,
+                }
+            ),  # PANTHER
+            Fol(
+                {
+                    "force": 40,
+                    "agility": 2,
+                    "speed": 1,
+                    "lifeMax": 10,
+                    "counter": 0,
+                    "riposte": 0,
+                    "combo": -20,
+                    "parry": 0,
+                    "dodge": 0,
+                    "init": 360,
+                    "dw": _Weapons.HANDS,
+                }
+            ),
         ]
 
     @staticmethod
