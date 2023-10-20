@@ -146,6 +146,13 @@ class Weap:
         self.anim = data["anim"]
 
 
+class Sup:
+    def __init__(self, data):
+        self.id = data["id"]
+        self.toss = data["toss"]
+        self.use = data["use"]
+
+
 class Data:
     @staticmethod
     def weapons():
@@ -757,16 +764,16 @@ class Data:
     @staticmethod
     def supers():
         return [
-            {"id": _Supers.THIEF, "toss": 8, "use": 2},
-            {"id": _Supers.BRUTE, "toss": 5, "use": 1},
-            {"id": _Supers.MEDECINE, "toss": 5, "use": 1},
-            {"id": _Supers.NET, "toss": 5, "use": 1},
-            {"id": _Supers.BOMB, "toss": 2, "use": 2},
-            {"id": _Supers.GRAB, "toss": 2, "use": 1},
-            {"id": _Supers.SHOUT, "toss": 8, "use": 2},
-            {"id": _Supers.HYPNO, "toss": 3, "use": 1},
-            {"id": _Supers.DOWNPOUR, "toss": 2, "use": 1},
-            {"id": _Supers.TRAPPER, "toss": 20, "use": 4},
+            Sup({"id": _Supers.THIEF, "toss": 8, "use": 2}),
+            Sup({"id": _Supers.BRUTE, "toss": 5, "use": 1}),
+            Sup({"id": _Supers.MEDECINE, "toss": 5, "use": 1}),
+            Sup({"id": _Supers.NET, "toss": 5, "use": 1}),
+            Sup({"id": _Supers.BOMB, "toss": 2, "use": 2}),
+            Sup({"id": _Supers.GRAB, "toss": 2, "use": 1}),
+            Sup({"id": _Supers.SHOUT, "toss": 8, "use": 2}),
+            Sup({"id": _Supers.HYPNO, "toss": 3, "use": 1}),
+            Sup({"id": _Supers.DOWNPOUR, "toss": 2, "use": 1}),
+            Sup({"id": _Supers.TRAPPER, "toss": 20, "use": 4}),
         ]
 
     @staticmethod
