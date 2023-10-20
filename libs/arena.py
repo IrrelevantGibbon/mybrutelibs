@@ -67,6 +67,7 @@ class Glad:
         self.supers: List[Sup] = self.get_gladiator_weapons()
         self.team = team
         self.life_log = []
+        self.fl_survival = gladiator.flSurvival
 
     def get_gladiator_weapons(self) -> List[Weap]:
         gladiator_weapons = []
@@ -318,17 +319,51 @@ class Arena:
             # TODO ADD HISTORY EAT
             # TODO ADD HISTORY MOVEBACK
 
-    def draw_weapon(self, gladiator: Glad, wp: int) -> _Weapons | None:
-        pass
+    def draw_weapon(self, gladiator: Glad, sup: int) -> _Weapons | None:
+        if (
+            self.hold_weapon(gladiator)
+            and self.seed.random(len(gladiator.weapons) * 2) == 0
+        ):
+            return None
+        sum_ = 0
+        for weapon in gladiator.weapons:
+            sum_ += weapon.toss
+        rnd = self.seed.random(sum_ + sup)
+        sum_ = 0
+        for weapon in gladiator.weapons:
+            sum_ += weapon.toss
+            if rnd <= sum_:
+                return weapon
+        return None
 
     def hold_weapon(self, gladiator: Glad) -> bool:
-        pass
+        return gladiator.wp.id != gladiator.gd.defaultWeapon
 
     def trash_weapon(self, gladiator: Glad) -> None:
-        pass
+        gladiator.weapons.remove(gladiator.wp)
+        ## TODO ADD HISTORY
+        gladiator.wp = gladiator.default_wp
 
-    def get_opponent(self, gladiator: Glad, follower: bool = False) -> Glad:
-        pass
+    def get_team(self, team: int, follower: bool = False) -> List[Glad]:
+        team_glads = []
+        for gladiator in self.glads:
+            if gladiator.team == team and (
+                (follower and gladiator.gd.fol is not None)
+                or (not follower and gladiator.gd.fol is None)
+            ):
+                team_glads.append(gladiator)
+        return team_glads
+
+    def get_opponent(self, gladiator: Glad, follower: bool = False) -> Glad | None:
+        opponent_team = self.get_team(1 - gladiator.team, follower)
+
+        for opp in opponent_team:
+            if opp.status[1]:
+                opponent_team.remove(opp)
+                break
+        if len(opponent_team) == 0:
+            return None
+        return opponent_team[self.seed.random(len(opponent_team))]
 
     def throw_attacks(self, gladiator: Glad, opponent: Glad) -> None:
         pass
@@ -346,13 +381,78 @@ class Arena:
         pass
 
     def set_status(self, gladiator: Glad, sid: int, flag: bool) -> None:
-        pass
+        gladiator.status[sid] = flag
+        # TODO ADD HISTORY
 
-    def hit(self, opponent: Glad, damage: int) -> int:
-        pass
+    def hit(self, gladiator: Glad, damage: int) -> int:
+        if gladiator.status[1]:
+            self.remove_net(gladiator)
+        
+        if gladiator.gd.flIncrevable:
+            max = round(gladiator.gd.lifeMax_() / 5)
+            if damage > max:
+                damage = max
+                # TODO ADD HISTORY
+        
+        gladiator.life -= damage
+        
+        if gladiator.gd.flSurvival and gladiator.life <= 0:
+            gladiator.life = 1
+            gladi
+            # TODO ADD HISTORY
+        
+        gladiator.life_log.append(damage)
+        return damage
+    
+    def remove_net(self, gladiator: Glad) -> None:
+        self.set_status(gladiator, 1, False)
+        gladiator.init = self.current_init + 50
 
-    def get_grab_damage(self, gladiator: Glad, opponent: Glad) -> int:
-        pass
+    def get_grab_damage(self, gladiator: Glad, opponent: Glad | None) -> int:
+        damage = int((10 + gladiator.gd.force * 0.6) * (0.8 + self.seed.rand_() * 0.4))
+        if gladiator.status[0]:
+            damage *= 2
+        if opponent is not None:
+            damage -= opponent.gd.armor
+        if damage < 1:
+            damage = 1
+        return damage
+
+    def get_brawl_damage(self, gladiator: Glad, opponent: Glad | None) -> int:
+        coef = 0.2 + gladiator.wp.deg * 0.05
+        damage = (gladiator.wp.deg + gladiator.gd.force * coef) * (
+            0.8 + self.seed.rand_() * 0.4
+        )
+        if gladiator.status[0]:
+            damage *= 2
+        damage *= gladiator.gd.damageCoef[gladiator.wp.dt]
+
+        if opponent is not None:
+            if opponent.gd.flLeadBones and gladiator.wp.dt == 4:
+                damage *= 0.7
+                damage -= opponent.gd.armor
+
+        if damage < 1:
+            damage = 1
+        return int(damage)
+
+    def get_throw_damage(self, gladiator: Glad, opponent: Glad | None) -> int:
+        damage = int(
+            gladiator.wp.ged + gladiator.gd.force * 0.1 + gladiator.gd.agility * 0.15
+        ) * (1 + self.seed.rand_() * 0.5)
+        if opponent is not None:
+            damage -= opponent.gd.armor
+        if damage < 1:
+            damage = 1
+        return damage
+
+    def get_main_glad(self, team: int) -> Glad:
+        for gladiator in self.glads:
+            if gladiator.team == team and gladiator.gd.fol is None:
+                return gladiator
+
+    def is_alive(self, team: int) -> bool:
+        return self.get_main_glad(team).life > 0
 
     def action(self, gladiator: Glad):
         super_ = self.draw_super(gladiator, 10)
