@@ -81,6 +81,8 @@ class Glad:
         self.team = team
         self.life_log = []
         self.fl_survival = gladiator.flSurvival
+        self.shield_level = gladiator.shieldLevel
+        self.parry = gladiator.parry
 
     def get_gladiator_weapons(self) -> List[Weap]:
         gladiator_weapons = []
@@ -415,7 +417,7 @@ class Arena:
             return False
         if c != 0:
             c = 1
-        n = opponent.gd.parry + opponent.wp.par - gladiator.wp.par
+        n = opponent.parry + opponent.wp.par - gladiator.wp.par
         return self.seed.rand_() * c < n * 0.1
 
     def test_esquive(self, gladiator: Glad, opponent: Glad, c: float | None) -> bool:
@@ -462,10 +464,54 @@ class Arena:
             stats[TeamStat.DAMAGE_MAX] = dam
 
     def attack(self, gladiator: Glad, opponent: Glad) -> None:
-        pass
+        if gladiator.life <= 0:
+            return
+
+        damage = self.get_brawl_damage(gladiator, opponent)
+
+        if self.test_parade(gladiator, opponent, None):
+            damage = 0
+            self.st(opponent, TeamStat.PARADE)
+            if opponent.gd.flCounter:
+                opponent.counter = True
+
+        if self.test_esquive(gladiator, opponent, None):
+            damage = -1
+            self.st(opponent, TeamStat.DODGE)
+
+        sab = None
+        dis = False
+        dis_shield = False
+        if (
+            damage >= 0
+            and opponent.shield_level > 0
+            and gladiator.gd.disarm + gladiator.wp.dis > self.seed.random(300)
+        ):
+            self.st(gladiator, TeamStat.DISARM)
+            dis_shield = True
+            opponent.shield_level = 0
+            opponent.parry -= Gladiator.SHIELD_VALUE
 
     def attacks(self, gladiator: Glad, opponent: Glad) -> None:
-        pass
+        fl_riposte = not opponent.status[1]
+
+        self.attack(gladiator, opponent)
+
+        combo = (
+            gladiator.gd.combo + gladiator.wp.combo + gladiator.gd.agility_()
+        ) * 0.01
+
+        while self.seed.rand_() < combo or gladiator.retry_attack:
+            if opponent.counter:
+                break
+            combo *= 0.5
+            gladiator.retry_attack = False
+            self.attack(gladiator, opponent)
+
+        self.check_death()
+        if fl_riposte and self.test_riposte(gladiator, opponent):
+            self.st(gladiator, TeamStat.RIPOSTE)
+            self.attack(opponent, gladiator)
 
     def set_status(self, gladiator: Glad, sid: int, flag: bool) -> None:
         gladiator.status[sid] = flag
