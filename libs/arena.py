@@ -1,6 +1,6 @@
 from typing import Any, List
 from rand import Rand
-from data import _Followers, _Supers, _Weapons, _WeaponType
+from data import _Followers, _Supers, _Weapons, _WeaponType, Data, Weap, Sup
 from gladiator import Gladiator
 
 
@@ -58,14 +58,31 @@ class Glad:
         self.status = []
         self.keep = 0.0
         self.ct = 0.25 + (20 / (10 * gladiator.speed)) * 0.75
-        self.gd = gladiator
-        self.wp = gladiator.defaultWeapon
+        self.gd: Gladiator = gladiator
+        self.default_wp: Weap = Data.weapons()[0]
+        self.wp: Weap = self.default_wp
         self.life = gladiator.lifeMax_()
-        self.init = gladiator.startInit + self.seed.rand_() * 10
-        self.weapons = [i.id for i in gladiator.weapons]
-        self.supers = [i.id for i in gladiator.supers]
+        self.init = gladiator.startInit + gladiator.seed.rand_() * 10
+        self.weapons: List[Weap] = self.get_gladiator_weapons()
+        self.supers: List[Sup] = self.get_gladiator_weapons()
         self.team = team
         self.life_log = []
+
+    def get_gladiator_weapons(self) -> List[Weap]:
+        gladiator_weapons = []
+        for weapon in self.weapons:
+            for weap in Data.weapons():
+                if weap.id == weapon:
+                    gladiator_weapons.append(weap)
+        return gladiator_weapons
+
+    def get_gladiator_supers(self) -> List[Sup]:
+        gladiator_supers = []
+        for super_ in self.supers:
+            for sup in Data.supers():
+                if sup.id == super_:
+                    gladiator_supers.append(sup)
+        return gladiator_supers
 
 
 class Arena:
@@ -115,9 +132,133 @@ class Arena:
         self.glads.sort(key=lambda x: x.init)
 
     def draw_super(self, gladiator: Glad, sup: int) -> _Supers | None:
-        pass
+        sum_ = 0
+        for super_ in gladiator.supers:
+            sum_ += super_.toss
+        rnd = self.seed.random(sum_ + sup)
+        sum_ = 0
+        for super_ in gladiator.supers:
+            sum_ += super_.toss
+            if rnd <= sum_:
+                return super_
+        return None
 
-    def use_super(self, super: _Supers, gladiator: Glad) -> bool:
+    def use_super(self, super_: Sup, gladiator: Glad) -> bool:
+        opponent = self.get_opponent(gladiator)
+
+        match super_.id:
+            case _Supers.THIEF:
+                if not self.use_thief(gladiator, opponent):
+                    return False
+            case _Supers.BRUTE:
+                if not self.use_brute(gladiator):
+                    return False
+            case _Supers.NET:
+                self.use_net(gladiator, opponent)
+            case _Supers.MEDECINE:
+                if not self.use_medecine(gladiator):
+                    return False
+            case _Supers.BOMB:
+                self.use_bomb(gladiator)
+            case _Supers.GRAB:
+                if not self.use_grab(gladiator, opponent):
+                    return False
+            case _Supers.SHOUT:
+                if not self.use_shout(gladiator):
+                    return False
+            case _Supers.HYPNO:
+                if not self.use_hypno(gladiator):
+                    return False
+
+        super_.use -= 1
+        if super_.use == 0:
+            gladiator.supers.remove(super_)
+        return True
+
+    def use_thief(self, gladiator: Glad, opponent: Glad) -> bool:
+        if opponent.wp.id == opponent.default_wp.id:
+            return False
+
+        if gladiator.wp.id != gladiator.gd.defaultWeapon:
+            if self.seed.random(4) > 0:
+                return False
+            self.trash_weapon(gladiator)
+
+        opponent.weapons.remove(opponent.wp.id)
+        gladiator.wp = opponent.wp
+        gladiator.keep = 1
+        gladiator.weapons.append(gladiator.wp)
+        opponent.wp = opponent.default_wp
+        # TODO ADD HISTORY
+        opponent.init += 30 * opponent.ct
+        return True
+
+    def use_brute(self, gladiator: Glad) -> bool:
+        if gladiator.status[0]:
+            return False
+        self.set_status(gladiator, 0, True)
+        return True
+
+    def use_net(self, gladiator: Glad, opponent: Glad) -> None:
+        opponent_follower = self.get_opponent(gladiator)
+        net_receiver = opponent_follower if opponent_follower is not None else opponent
+
+        # TODO ADD HISTORY
+        self.set_status(net_receiver, 1, True)
+
+        net_receiver.init += (
+            int(max(260 - pow(net_receiver.gd.force, 0.5) * 10, 50))
+            if net_receiver.gd.fol is None
+            else 100000
+        )
+        gladiator.init += 20 * gladiator.ct
+
+    def use_medecine(self, gladiator: Glad) -> bool:
+        damage = gladiator.gd.lifeMax_() - gladiator.life
+        if damage < 50:
+            return False
+        life = int(damage * (0.25 * self.seed.rand_() * 0.25))
+        # TODO ADD HISTORY
+        gladiator.life += life
+        gladiator.init += 15
+        return True
+
+    def use_bomb(self, gladiator: Glad) -> None:
+        damage = 15 * self.seed.random(10)
+
+        for opponent in self.glads:
+            if opponent.team != gladiator.team:
+                self.hit(opponent, damage)
+
+        # TODO ADD HISTORY
+        self.check_death()
+        gladiator.init += 50 * gladiator.ct
+
+    def use_grab(self, gladiator: Glad, opponent: Glad) -> bool:
+        if gladiator.wp.id != gladiator.default_wp.id and self.seed.random(4) > 0:
+            return False
+        self.trash_weapon(gladiator)
+        damage = self.get_grab_damage(gladiator, opponent) * 4
+        damage = self.hit(opponent, damage)
+        # TODO ADD HISTORY
+        self.check_death()
+        gladiator.init += 50 * gladiator.ct
+
+    def use_shout(self, gladiator: Glad) -> bool:
+        follower_flee = False
+        for opponent_followers in self.glads:
+            if (
+                opponent_followers.team != gladiator.team
+                and opponent_followers.gd.fol is not None
+                and not opponent_followers.status[1]
+                and self.seed.random(2) == 0
+            ):
+                self.glads.remove(opponent_followers)
+                follower_flee = True
+                # TODO ADD HISTORY
+        return follower_flee
+
+    def use_hypno(self, gladiator: Glad) -> bool:
         pass
 
     def draw_weapon(self, gladiator: Glad, wp: int) -> _Weapons | None:
@@ -129,7 +270,7 @@ class Arena:
     def trash_weapon(self, gladiator: Glad) -> None:
         pass
 
-    def get_opponent(self, gladiator: Glad) -> Glad:
+    def get_opponent(self, gladiator: Glad, follower: bool = False) -> Glad:
         pass
 
     def throw_attacks(self, gladiator: Glad, opponent: Glad) -> None:
@@ -148,6 +289,12 @@ class Arena:
         pass
 
     def set_status(self, gladiator: Glad, sid: int, flag: bool) -> None:
+        pass
+
+    def hit(self, opponent: Glad, damage: int) -> int:
+        pass
+
+    def get_grab_damage(self, gladiator: Glad, opponent: Glad) -> int:
         pass
 
     def action(self, gladiator: Glad):
@@ -172,7 +319,7 @@ class Arena:
             sab = gladiator.wp == gladiator.sabotage
             if sab:
                 gladiator.weapons.remove(gladiator.wp)
-                gladiator.wp = gladiator.defaultWeapon
+                gladiator.wp = gladiator.default_wp
                 gladiator.init += 100
                 gladiator.sabotage = None
                 return
