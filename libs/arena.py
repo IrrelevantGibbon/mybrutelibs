@@ -123,6 +123,7 @@ class Arena:
         self.cadavers = []
         self.current_history = []
         self.teams = [Team(), Team()]
+        self.team_win = None
 
     def init_followers(self):
         for gladiator in self.glads:
@@ -492,6 +493,46 @@ class Arena:
             opponent.shield_level = 0
             opponent.parry -= Gladiator.SHIELD_VALUE
 
+        if damage > 0:
+            if gladiator.gd.flVandalism:
+                a = []
+                for wp in opponent.weapons:
+                    if wp != opponent.default_wp:
+                        a.append(wp)
+                if len(a) > 0:
+                    w: Weap = a[self.seed.random(len(a))]
+                    opponent.weapons.remove(w)
+                    sab = w.id
+
+            if self.hold_weapon(
+                opponent
+            ) and gladiator.gd.disarm + gladiator.wp.dis > self.seed.random(100):
+                self.st(gladiator, TeamStat.DISARM)
+                dis = True
+                gladiator.weapons.remove(gladiator.wp)
+                gladiator.wp = gladiator.default_wp
+
+        dis_att = (
+            damage >= 0
+            and opponent.gd.flIronHead
+            and self.hold_weapon(gladiator)
+            and self.seed.rand_() < 0.3
+        )
+        if dis_att:
+            self.st(gladiator, TeamStat.DISARM)
+            opponent.weapons.remove(gladiator.wp)
+            opponent.wp = opponent.default_wp
+
+        if damage > 0:
+            damage = self.hit(opponent, damage)
+            self.st(gladiator, TeamStat.STRIKE)
+            self.st_dam_max(gladiator, damage)
+
+        # TODO ADD HISTORY
+
+        if damage <= 0 and gladiator.gd.flStayer and self.seed.rand_() < 0.7:
+            gladiator.retry_attack = True
+
     def attacks(self, gladiator: Glad, opponent: Glad) -> None:
         fl_riposte = not opponent.status[1]
 
@@ -669,10 +710,24 @@ class Arena:
                 break
 
     def check_death(self):
-        pass
+        gladiators = self.glads.copy()
+        for gladiator in gladiators:
+            if gladiator.life <= 0:
+                # TODO ADD HISTORY
+                if gladiator.gd.fol is not None:
+                    self.tst(1 - gladiator.team, TeamStat.FOL_FRAG)
+                    self.glads.remove(gladiator)
+                    self.cadavers.append(gladiator)
+
+                if gladiator.gd.fol is None:
+                    self.team_win = 1 - gladiator.team
 
     def check_end(self):
-        pass
+        return self.team_win is not None
 
     def end_fight(self):
-        pass
+        # TODO ADD HISTORY
+
+        gladiator = self.get_main_glad(self.team_win)
+
+        print("Team {} wins".format(self.team_win))
