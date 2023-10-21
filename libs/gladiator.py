@@ -101,6 +101,7 @@ class Gladiator:
         self.seed.init_seed(seed_id)
 
         if fol != None:
+            self.init_follower(fol)
             return
 
         self.init_destiny()
@@ -162,7 +163,7 @@ class Gladiator:
                 self.lifeMax += inc
 
     def init_follower(self, followers: _Followers):
-        datas: Fol = Data.followers(followers)
+        datas: Fol = Data.followers()[followers._value_ - 1]
 
         self.lvl = 0
         self.damageCoef = [1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1]
