@@ -92,6 +92,9 @@ class Gladiator:
 
         self.seed: Rand  # using Python's random as a substitute for mt.Rand
 
+        self.win = 0
+        self.lose = 0
+
     def new(self, seed_id, name: str, fol=None):
         self.id = seed_id
         self.name = name
@@ -106,6 +109,7 @@ class Gladiator:
 
         self.init_destiny()
         self.init_caracs()
+        return self
 
     def init_destiny(self):
         if self.seed.random(1000) == 0:
@@ -198,6 +202,23 @@ class Gladiator:
                 self.totalBonusWeight += w - i["w"]
                 i["w"] = w
                 return
+
+    def win_game(self):
+        self.xp += 3
+        self.win += 1
+        lvl_xp = self.can_level_up()
+        if lvl_xp >= 0:
+            self.next_level()
+            self.xp = lvl_xp
+
+    def lose_game(self):
+        self.xp += 1
+        self.lose += 1
+        if self.can_level_up() >= 0:
+            self.next_level()
+
+    def can_level_up(self):
+        return self.xp - self.lvl * 1.5 + 1
 
     def next_level(self):
         self.xp = 0

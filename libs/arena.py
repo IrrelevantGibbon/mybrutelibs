@@ -303,7 +303,8 @@ class Arena:
     def use_downpour(self, gladiator: Glad, opponent: Glad) -> None:
         if len(gladiator.weapons) > 2:
             weapons_to_throw = gladiator.weapons.copy()
-            weapons_to_throw.remove(gladiator.wp)
+            if gladiator.wp != gladiator.default_wp:
+                weapons_to_throw.remove(gladiator.wp)
             max_throw = len(weapons_to_throw) // 2
             for _ in range(max_throw):
                 weapons_to_throw.pop(self.seed.random(len(weapons_to_throw)))
@@ -321,6 +322,7 @@ class Arena:
                 damages.append(damage)
                 gladiator.weapons.remove(wp)
             # TODO ADD HISTORY
+            gladiator.wp = gladiator.default_wp
             self.check_death()
             gladiator.init += 200 * gladiator.ct
 
@@ -347,7 +349,8 @@ class Arena:
 
     def draw_weapon(self, gladiator: Glad, sup: int) -> _Weapons | None:
         if (
-            self.hold_weapon(gladiator)
+            len(gladiator.weapons) == 0
+            or self.hold_weapon(gladiator)
             and self.seed.random(len(gladiator.weapons) * 2) == 0
         ):
             return None
@@ -427,16 +430,14 @@ class Arena:
         if c != 0:
             c = 1
         n = opponent.parry + opponent.wp.par - gladiator.wp.par
-        return self.seed.rand_() * c < n * 0.1
+        return self.seed.rand_() * c < n * 0.01
 
-    def test_esquive(self, gladiator: Glad, opponent: Glad, c: float | None) -> bool:
+    def test_esquive(self, gladiator: Glad, opponent: Glad, c: float = 1.0) -> bool:
         if opponent.status[1]:
             return False
-        if c != 0:
-            c = 1
 
         if opponent.f_ballerina:
-            opponent = False
+            opponent.f_ballerina = False
             return True
 
         agg = min(max(-40, (opponent.gd.agility_() - gladiator.gd.agility_()) * 2), 40)
@@ -484,7 +485,7 @@ class Arena:
             if opponent.gd.flCounter:
                 opponent.counter = True
 
-        if self.test_esquive(gladiator, opponent, None):
+        if self.test_esquive(gladiator, opponent):
             damage = -1
             self.st(opponent, TeamStat.DODGE)
 
@@ -510,6 +511,7 @@ class Arena:
                 if len(a) > 0:
                     w: Weap = a[self.seed.random(len(a))]
                     opponent.weapons.remove(w)
+                    opponent.wp = opponent.default_wp
                     sab = w.id
 
             if self.hold_weapon(
@@ -709,14 +711,13 @@ class Arena:
         for gladiator in self.glads:
             gladiator.init += self.handicap[gladiator.team]
 
-        for _ in range(1000):
+        for _ in range(1000000000000):
             self.sort_glads_by_initiative()
             self.current_init = self.glads[0].init
             self.action(self.glads[0])
             self.check_death()
             if self.check_end():
-                self.end_fight()
-                break
+                return self.end_fight()
 
     def check_death(self):
         gladiators = self.glads.copy()
@@ -737,6 +738,14 @@ class Arena:
     def end_fight(self):
         # TODO ADD HISTORY
 
-        gladiator = self.get_main_glad(self.team_win)
+        gladiator_winner = self.get_main_glad(self.team_win)
+        gladiator_loser = self.get_main_glad(1 - self.team_win)
 
-        print("name {} wins".format(gladiator.gd.name))
+        gladiator_winner.gd.win_game()
+        gladiator_loser.gd.lose_game()
+
+        print(
+            "{} wins over {} Left Hp : {}".format(
+                gladiator_winner.gd.name, gladiator_loser.gd.name, gladiator_winner.life
+            )
+        )
